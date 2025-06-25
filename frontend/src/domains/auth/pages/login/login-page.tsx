@@ -58,7 +58,7 @@ export const LoginPage = () => {
           Welcome to School Admin !
         </Typography>
         <Typography variant='subtitle1' color='text.secondary'>
-          Sign in to continue.
+          Sign in to continue now.
         </Typography>
         <LoginForm
           methods={methods}
