@@ -1,0 +1,217 @@
+// const express = require("express");
+// const cookieParser = require("cookie-parser");
+// const dotenv = require("dotenv");
+// dotenv.config();
+
+// const path = require("path");
+
+// // Debug configuration
+// const DEBUG_MODE = false; // Set false to disable debug logs
+// const LOAD_ROUTES = true; // Set false to skip loading routes
+
+// function debugLog(message, type = 'info') {
+//   if (!DEBUG_MODE) return;
+//   const timestamp = new Date().toISOString();
+//   const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+//   console.log(`[${timestamp}] ${prefix} ${message}`);
+// }
+
+// function testImport(moduleName, importPath, importFunction) {
+//   debugLog(`Testing import: ${moduleName} from ${importPath}`);
+//   try {
+//     const result = importFunction();
+//     debugLog(`${moduleName} loaded successfully`, 'success');
+//     return { success: true, module: result };
+//   } catch (error) {
+//     debugLog(`Failed to load ${moduleName}: ${error.message}`, 'error');
+//     debugLog(`Stack trace: ${error.stack}`, 'error');
+//     return { success: false, error: error.message };
+//   }
+// }
+
+// // Start debugging
+// debugLog('=== Starting App Initialization ===');
+// debugLog(`Debug Mode: ${DEBUG_MODE}`);
+// debugLog(`Load Routes: ${LOAD_ROUTES}`);
+
+// const app = express();
+// debugLog('Express app created');
+
+// // Test basic middleware imports first
+// debugLog('\n=== Testing Core Middleware Imports ===');
+
+// const middlewareTest = testImport(
+//   'Middlewares', 
+//   './middlewares', 
+//   () => require("./middlewares")
+// );
+
+// // Apply express body parsers before CORS
+// try {
+//   app.use(express.json());
+//   app.use(express.urlencoded({ extended: true }));
+//   debugLog('✅ JSON and URL-encoded middleware applied', 'success');
+// } catch (error) {
+//   debugLog(`❌ Error applying body parsers: ${error.message}`, 'error');
+// }
+
+// // Test and apply CORS middleware
+// debugLog('\n=== Testing and Applying CORS Middleware ===');
+// const corsTest = testImport(
+//   'CORS Config', 
+//   './config', 
+//   () => require("./config")
+// );
+
+// if (corsTest.success) {
+//   const { cors } = corsTest.module;
+//   if (typeof cors === 'function') {
+//     app.use(cors); 
+//     debugLog('✅ CORS middleware applied successfully', 'success');
+//   } else {
+//     debugLog('❌ CORS is not a valid middleware function', 'error');
+//   }
+// } else {
+//   debugLog('❌ Skipping CORS setup due to import failure', 'error');
+// }
+
+// // Static files middleware
+// try {
+//   app.use(express.static(path.join(__dirname, '..', 'public')));
+//   debugLog('✅ Static middleware applied', 'success');
+// } catch (error) {
+//   debugLog(`❌ Error applying static middleware: ${error.message}`, 'error');
+// }
+
+// // Cookie parser middleware
+// try {
+//   app.use(cookieParser());
+//   debugLog('✅ Cookie parser middleware applied', 'success');
+// } catch (error) {
+//   debugLog(`❌ Error applying cookie parser: ${error.message}`, 'error');
+// }
+
+// // Test routes if enabled
+// if (LOAD_ROUTES) {
+//   debugLog('\n=== Testing Route Imports ===');
+
+//   const routeTests = [
+//     { name: 'Auth Routes', path: './modules/auth/auth-router.js', export: 'authRoutes' },
+//     { name: 'RP Routes', path: './modules/roles-and-permissions/rp-router.js', export: 'rpRoutes' },
+//     { name: 'Leave Routes', path: './modules/leave/leave-router.js', export: 'leaveRoutes' },
+//     { name: 'Classes Routes', path: './modules/classes/classes-router.js', export: 'classesRoutes' },
+//     { name: 'Class Teacher Routes', path: './modules/class-teacher/class-teacher-router.js', export: 'classTeacherRoutes' },
+//     { name: 'Notices Routes', path: './modules/notices/notices-router.js', export: 'noticesRoutes' },
+//     { name: 'Staffs Routes', path: './modules/staffs/staffs-router.js', export: 'staffsRoutes' },
+//     { name: 'Account Routes', path: './modules/account/account-router.js', export: 'accountRoutes' },
+//     { name: 'Section Routes', path: './modules/sections/section-router.js', export: 'sectionRoutes' },
+//     { name: 'Department Routes', path: './modules/departments/department-router.js', export: 'departmentRoutes' },
+//     { name: 'Access Control Routes', path: './modules/access-control/access-control-router.js', export: 'accessControlRoutes' }
+//   ];
+
+//   const routeResults = {};
+
+//   for (const route of routeTests) {
+//     const result = testImport(
+//       route.name,
+//       route.path,
+//       () => {
+//         const module = require(route.path);
+//         return module[route.export];
+//       }
+//     );
+//     routeResults[route.name] = result;
+//   }
+
+//   app.get("/ping", (req, res) => {
+//     res.send("pong");
+//   });
+  
+
+//   // Test controller imports
+//   debugLog('\n=== Testing Controller Imports ===');
+
+//   const controllerTests = [
+//     { name: 'Class Teacher Controller', path: './modules/class-teacher/class-teacher-controller.js', export: 'handleGetAllTeachers' },
+//     { name: 'Dashboard Controller', path: './modules/dashboard/dashboard-controller.js', export: 'handleGetDashboardData' }
+//   ];
+
+//   const controllerResults = {};
+
+//   for (const controller of controllerTests) {
+//     const result = testImport(
+//       controller.name,
+//       controller.path,
+//       () => {
+//         const module = require(controller.path);
+//         return module[controller.export];
+//       }
+//     );
+//     controllerResults[controller.name] = result;
+//   }
+
+//   // Test v1 routes import
+//   debugLog('\n=== Testing V1 Routes Import ===');
+//   const v1RoutesTest = testImport(
+//     'V1 Routes',
+//     './routes/v1',
+//     () => require("./routes/v1")
+//   );
+
+//   // Apply routes if all tests passed
+//   if (v1RoutesTest.success) {
+//     try {
+//       const { v1Routes } = v1RoutesTest.module;
+//       app.use("/api/v1", v1Routes);
+//       debugLog('✅ V1 routes applied successfully', 'success');
+//     } catch (error) {
+//       debugLog(`❌ Error applying V1 routes: ${error.message}`, 'error');
+//     }
+//   }
+
+//   // Summary of route test results
+//   debugLog('\n=== Route Test Summary ===');
+//   Object.entries(routeResults).forEach(([name, result]) => {
+//     if (result.success) {
+//       debugLog(`${name}: PASSED`, 'success');
+//     } else {
+//       debugLog(`${name}: FAILED - ${result.error}`, 'error');
+//     }
+//   });
+
+//   debugLog('\n=== Controller Test Summary ===');
+//   Object.entries(controllerResults).forEach(([name, result]) => {
+//     if (result.success) {
+//       debugLog(`${name}: PASSED`, 'success');
+//     } else {
+//       debugLog(`${name}: FAILED - ${result.error}`, 'error');
+//     }
+//   });
+
+// } else {
+//   debugLog('ℹ️ Route loading disabled for debugging', 'info');
+// }
+
+// // Apply error handling middleware
+// if (middlewareTest.success) {
+//   try {
+//     const { handle404Error, handleGlobalError } = middlewareTest.module;
+//     app.use(handle404Error);
+//     debugLog('✅ 404 error handler applied', 'success');
+//     app.use(handleGlobalError);
+//     debugLog('✅ Global error handler applied', 'success');
+//   } catch (error) {
+//     debugLog(`❌ Error applying error handlers: ${error.message}`, 'error');
+//   }
+// } else {
+//   // Fallback error handler
+//   app.use((err, req, res, next) => {
+//     debugLog(`❌ Fallback error handler caught: ${err.message}`, 'error');
+//     res.status(500).json({ error: 'Something went wrong!' });
+//   });
+//   debugLog('ℹ️ Fallback error handler applied', 'info');
+// }
+
+// debugLog('\n=== App Initialization Complete ===');
+
+// module.exports = { app };
