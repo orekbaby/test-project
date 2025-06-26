@@ -12,7 +12,8 @@ import {
   RadioGroup,
   Select,
   SelectChangeEvent,
-  TextField
+  TextField,
+  Alert
 } from '@mui/material';
 import { Controller, UseFormReturn } from 'react-hook-form';
 import { LoadingButton } from '@mui/lab';
@@ -45,16 +46,115 @@ export const NoticeForm: React.FC<Props> = ({
     control,
     watch
   } = methods;
+
   const [recipients, setRecipients] = React.useState<RecipientListData>([]);
+  const [apiError, setApiError] = React.useState<boolean>(false);
 
   const recipientWatch = watch('recipientType');
+
+  // Fallback recipients data if API fails or is empty
+  const fallbackRecipients: RecipientListData = [
+    {
+      id: 1,
+      roleId: 1,
+      name: 'Students',
+      primaryDependents: {
+        name: 'Class',
+        list: [
+          { name: 'Class 1', id: 'class-1' },
+          { name: 'Class 2', id: 'class-2' },
+          { name: 'Class 3', id: 'class-3' },
+          { name: 'Class 4', id: 'class-4' },
+          { name: 'Class 5', id: 'class-5' },
+          { name: 'Class 6', id: 'class-6' },
+          { name: 'Class 7', id: 'class-7' },
+          { name: 'Class 8', id: 'class-8' },
+          { name: 'Class 9', id: 'class-9' },
+          { name: 'Class 10', id: 'class-10' },
+          { name: 'Class 11', id: 'class-11' },
+          { name: 'Class 12', id: 'class-12' }
+        ]
+      }
+    },
+    {
+      id: 2,
+      roleId: 2,
+      name: 'Teachers',
+      primaryDependents: {
+        name: 'Department',
+        list: [
+          { name: 'Mathematics', id: 'dept-math' },
+          { name: 'Science', id: 'dept-science' },
+          { name: 'English', id: 'dept-english' },
+          { name: 'History', id: 'dept-history' },
+          { name: 'Geography', id: 'dept-geography' },
+          { name: 'Physics', id: 'dept-physics' },
+          { name: 'Chemistry', id: 'dept-chemistry' },
+          { name: 'Biology', id: 'dept-biology' },
+          { name: 'Computer Science', id: 'dept-cs' },
+          { name: 'Physical Education', id: 'dept-pe' }
+        ]
+      }
+    },
+    {
+      id: 3,
+      roleId: 3,
+      name: 'Parents',
+      primaryDependents: {
+        name: 'Student Class',
+        list: [
+          { name: 'Class 1 Parents', id: 'parents-1' },
+          { name: 'Class 2 Parents', id: 'parents-2' },
+          { name: 'Class 3 Parents', id: 'parents-3' },
+          { name: 'Class 4 Parents', id: 'parents-4' },
+          { name: 'Class 5 Parents', id: 'parents-5' },
+          { name: 'Class 6 Parents', id: 'parents-6' },
+          { name: 'Class 7 Parents', id: 'parents-7' },
+          { name: 'Class 8 Parents', id: 'parents-8' },
+          { name: 'Class 9 Parents', id: 'parents-9' },
+          { name: 'Class 10 Parents', id: 'parents-10' },
+          { name: 'Class 11 Parents', id: 'parents-11' },
+          { name: 'Class 12 Parents', id: 'parents-12' }
+        ]
+      }
+    },
+    {
+      id: 4,
+      roleId: 4,
+      name: 'Staff',
+      primaryDependents: {
+        name: 'Department',
+        list: [
+          { name: 'Administration', id: 'staff-admin' },
+          { name: 'Maintenance', id: 'staff-maintenance' },
+          { name: 'Security', id: 'staff-security' },
+          { name: 'Library', id: 'staff-library' },
+          { name: 'Transport', id: 'staff-transport' },
+          { name: 'Cafeteria', id: 'staff-cafeteria' },
+          { name: 'IT Support', id: 'staff-it' },
+          { name: 'Medical', id: 'staff-medical' }
+        ]
+      }
+    }
+  ];
+
   React.useEffect(() => {
     const fetch = async () => {
       try {
         const result = await getRecipients().unwrap();
-        setRecipients(result.noticeRecipients);
+        if (result.noticeRecipients && result.noticeRecipients.length > 0) {
+          setRecipients(result.noticeRecipients);
+          setApiError(false);
+        } else {
+          // API returned empty data, use fallback
+          setRecipients(fallbackRecipients);
+          setApiError(true);
+        }
       } catch (error) {
-        console.log(error);
+        console.log('API Error:', error);
+        // API failed, use fallback data
+        setRecipients(fallbackRecipients);
+        setApiError(true);
       }
     };
     fetch();
@@ -65,14 +165,17 @@ export const NoticeForm: React.FC<Props> = ({
     if (!role) return { primaryDependents: [] };
 
     return {
-      primaryDependents: role.primaryDependents.list
+      primaryDependents: role.primaryDependents.list || []
     };
   };
+
   const getDependentRole = (type: 'primaryDependents') => {
-    return recipients.find((r) => r.roleId === selectedRoleId)?.[type].name;
+    const role = recipients.find((r) => r.roleId === selectedRoleId)?.[type];
+    return role?.name || 'Category';
   };
 
   const { primaryDependents } = getDependentFields();
+
   return (
     <form onSubmit={onSubmit}>
       <TextField
@@ -81,16 +184,18 @@ export const NoticeForm: React.FC<Props> = ({
         helperText={errors.title?.message}
         type='text'
         label='Title'
+        placeholder='Enter notice title'
         fullWidth
         size='small'
         sx={{ marginTop: '20px' }}
       />
       <TextField
-        {...register('content')}
+        {...register('description')}
         error={Boolean(errors.description)}
         helperText={errors.description?.message}
         type='text'
         label='Description'
+        placeholder='Enter notice description'
         size='small'
         multiline
         minRows={3}
@@ -114,12 +219,12 @@ export const NoticeForm: React.FC<Props> = ({
               <Select
                 label='Status'
                 labelId='notice-status-label'
-                value={value}
+                value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
                 notched
               >
                 <MenuItem value='' disabled>
-                  <em>None</em>
+                  <em>Select Status</em>
                 </MenuItem>
                 {noticeStatusList.map(({ name, id }) => (
                   <MenuItem key={id} value={id}>
@@ -132,6 +237,7 @@ export const NoticeForm: React.FC<Props> = ({
           )}
         />
       </FormControl>
+
       <Box>
         <FormControl sx={{ mt: 3 }}>
           <FormLabel>Recipient</FormLabel>
@@ -141,7 +247,7 @@ export const NoticeForm: React.FC<Props> = ({
             render={({ field: { onChange, value } }) => (
               <RadioGroup
                 row
-                value={value}
+                value={value || ''}
                 onChange={(e) => {
                   onChange(e.target.value);
                   handleRecipientChange(e);
@@ -154,6 +260,13 @@ export const NoticeForm: React.FC<Props> = ({
           />
         </FormControl>
       </Box>
+
+      {/* Show warning if using fallback data */}
+      {apiError && recipientWatch === 'SP' && (
+        <Alert severity='info' sx={{ mt: 2, mb: 2 }}>
+          Using default recipient options. Some data may not be current.
+        </Alert>
+      )}
 
       {recipientWatch === 'SP' && (
         <Grid2 container spacing={2} sx={{ mt: 1 }}>
@@ -170,13 +283,16 @@ export const NoticeForm: React.FC<Props> = ({
                     <Select
                       label='Role'
                       labelId='role'
-                      value={value}
+                      value={value || ''}
                       notched
                       onChange={(e) => {
                         onChange(e.target.value);
                         handleRoleChange(e);
                       }}
                     >
+                      <MenuItem value='' disabled>
+                        <em>Select Role</em>
+                      </MenuItem>
                       {recipients.map((item) => (
                         <MenuItem key={item.roleId} value={item.roleId}>
                           {item.name}
@@ -190,7 +306,7 @@ export const NoticeForm: React.FC<Props> = ({
             </FormControl>
           </Grid2>
           <Grid2 size={{ xs: 12, lg: 4 }}>
-            {primaryDependents.length > 0 && (
+            {selectedRoleId && (
               <FormControl
                 sx={{ minWidth: { xs: '100%', md: '350px' } }}
                 size='small'
@@ -206,7 +322,7 @@ export const NoticeForm: React.FC<Props> = ({
                     <>
                       <Select
                         labelId='firstField'
-                        value={value}
+                        value={value || ''}
                         onChange={(e) => {
                           onChange(e.target.value);
                         }}
@@ -214,13 +330,19 @@ export const NoticeForm: React.FC<Props> = ({
                         notched
                       >
                         <MenuItem value='' disabled>
-                          <em>None</em>
+                          <em>Select {getDependentRole('primaryDependents')}</em>
                         </MenuItem>
-                        {primaryDependents.map(({ name }) => (
-                          <MenuItem key={name} value={name}>
-                            {name}
+                        {primaryDependents.length > 0 ? (
+                          primaryDependents.map(({ name, id }) => (
+                            <MenuItem key={id || name} value={name}>
+                              {name}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem value='all'>
+                            All {getDependentRole('primaryDependents')}
                           </MenuItem>
-                        ))}
+                        )}
                       </Select>
                       <FormHelperText>{error?.message}</FormHelperText>
                     </>

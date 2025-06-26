@@ -15,101 +15,200 @@ const {
 } = require("./notices-repository");
 
 const fetchNoticeRecipients = async () => {
-  const recipients = await getNoticeRecipientList();
-  if (!Array.isArray(recipients) || recipients.length <= 0) {
-    throw new ApiError(404, "Recipients not found");
+  try {
+    const recipients = await getNoticeRecipientList();
+    if (!Array.isArray(recipients) || recipients.length <= 0) {
+      throw new ApiError(404, "Recipients not found");
+    }
+    return recipients;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to fetch notice recipients");
   }
-  return recipients;
 };
 
 const processGetNoticeRecipients = async () => {
-  const recipients = await getNoticeRecipients();
-  if (!Array.isArray(recipients) || recipients.length <= 0) {
-    throw new ApiError(404, "Recipients not found");
+  try {
+    const recipients = await getNoticeRecipients();
+    if (!Array.isArray(recipients) || recipients.length <= 0) {
+      throw new ApiError(404, "Recipients not found");
+    }
+    return recipients;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to get notice recipients");
   }
-  return recipients;
 };
 
 const processGetNoticeRecipient = async (id) => {
-  const recipient = await getNoticeRecipientById(id);
-  if (!recipient) {
-    throw new ApiError(404, "Recipient detail not found");
-  }
+  try {
+    if (!id) {
+      throw new ApiError(400, "Recipient ID is required");
+    }
 
-  return recipient;
+    const recipient = await getNoticeRecipientById(id);
+    if (!recipient) {
+      throw new ApiError(404, "Recipient detail not found");
+    }
+
+    return recipient;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to get notice recipient");
+  }
 };
 
 const fetchAllNotices = async (userId) => {
-  const notices = await getNotices(userId);
-  if (notices.length <= 0) {
-    throw new ApiError(404, "Notices not found");
+  try {
+    if (!userId) {
+      throw new ApiError(400, "User ID is required");
+    }
+
+    const notices = await getNotices(userId);
+    if (!Array.isArray(notices) || notices.length <= 0) {
+      throw new ApiError(404, "Notices not found");
+    }
+    return notices;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to fetch notices");
   }
-  return notices;
 };
 
 const fetchNoticeDetailById = async (id) => {
-  const noticeDetail = await getNoticeById(id);
-  if (!noticeDetail) {
-    throw new ApiError(404, "Notice detail not found");
+  try {
+    if (!id) {
+      throw new ApiError(400, "Notice ID is required");
+    }
+
+    const noticeDetail = await getNoticeById(id);
+    if (!noticeDetail) {
+      throw new ApiError(404, "Notice detail not found");
+    }
+    return noticeDetail;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to fetch notice detail");
   }
-  return noticeDetail;
 };
 
 const addNotice = async (payload) => {
-  const affectedRow = await addNewNotice(payload);
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to add new notice");
-  }
+  try {
+    // Validate required fields
+    const { title, description, authorId } = payload;
+    if (!title || !description || !authorId) {
+      throw new ApiError(400, "Title, description, and author ID are required");
+    }
 
-  return { message: "Notice added successfully" };
+    // Ensure description is properly included in payload
+    const noticePayload = {
+      ...payload,
+      title: title.trim(),
+      description: description.trim(),
+    };
+
+    const result = await addNewNotice(noticePayload);
+    if (!result || result.rowCount <= 0) {
+      throw new ApiError(500, "Unable to add new notice");
+    }
+
+    return {
+      message: "Notice added successfully",
+      noticeId: result.insertedId,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to add notice");
+  }
 };
 
 const updateNotice = async (payload) => {
-  const affectedRow = await updateNoticeById(payload);
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to update notice");
-  }
+  try {
+    // Validate required fields
+    const { id, title, description } = payload;
+    if (!id || !title || !description) {
+      throw new ApiError(400, "ID, title, and description are required");
+    }
 
-  return { message: "Notice updated successfully" };
+    // Ensure description is properly included in payload
+    const noticePayload = {
+      ...payload,
+      title: title.trim(),
+      description: description.trim(),
+    };
+
+    const affectedRow = await updateNoticeById(noticePayload);
+    if (affectedRow <= 0) {
+      throw new ApiError(500, "Unable to update notice");
+    }
+
+    return { message: "Notice updated successfully" };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to update notice");
+  }
 };
 
 const processNoticeStatus = async (payload) => {
-  const { noticeId, status, currentUserId, currentUserRole } = payload;
-  const notice = await getNoticeById(noticeId);
-  if (!notice) {
-    throw new ApiError(404, "Notice not found");
-  }
+  try {
+    const { noticeId, status, currentUserId, currentUserRole } = payload;
 
-  const now = new Date();
-  const {
-    authorId,
-    reviewer_id: reviewerIdFromDB,
-    reviewed_dt: reviewedDateFromDB,
-  } = notice;
-  const userCanManageStatus = handleStatusCheck(
-    currentUserRole,
-    currentUserId,
-    authorId,
-    status
-  );
-  if (!userCanManageStatus) {
-    throw new ApiError(
-      403,
-      "Forbidden. You do not have permission to access to this resource."
+    // Validate required fields
+    if (
+      !noticeId ||
+      status === undefined ||
+      !currentUserId ||
+      !currentUserRole
+    ) {
+      throw new ApiError(
+        400,
+        "Notice ID, status, user ID, and user role are required"
+      );
+    }
+
+    const notice = await getNoticeById(noticeId);
+    if (!notice) {
+      throw new ApiError(404, "Notice not found");
+    }
+
+    const now = new Date();
+    const {
+      authorId,
+      reviewer_id: reviewerIdFromDB,
+      reviewed_dt: reviewedDateFromDB,
+    } = notice;
+
+    const userCanManageStatus = handleStatusCheck(
+      currentUserRole,
+      currentUserId,
+      authorId,
+      status
     );
-  }
 
-  const affectedRow = await manageNoticeStatus({
-    noticeId,
-    status,
-    reviewerId: currentUserRole === "admin" ? currentUserId : reviewerIdFromDB,
-    reviewDate: currentUserRole === "admin" ? now : reviewedDateFromDB,
-  });
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to review notice");
-  }
+    if (!userCanManageStatus) {
+      throw new ApiError(
+        403,
+        "Forbidden. You do not have permission to access this resource."
+      );
+    }
 
-  return { message: "Success" };
+    const affectedRow = await manageNoticeStatus({
+      noticeId,
+      status,
+      reviewerId:
+        currentUserRole === "admin" ? currentUserId : reviewerIdFromDB,
+      reviewDate: currentUserRole === "admin" ? now : reviewedDateFromDB,
+    });
+
+    if (affectedRow <= 0) {
+      throw new ApiError(500, "Unable to update notice status");
+    }
+
+    return { message: "Notice status updated successfully" };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to process notice status");
+  }
 };
 
 const handleStatusCheck = (
@@ -118,56 +217,92 @@ const handleStatusCheck = (
   authorId,
   status
 ) => {
+  // Admin can manage any status
   if (currentUserRole === "admin") {
     return true;
-  } else if (authorId === currentUserId) {
-    switch (status) {
-      case 1:
-      case 2:
-      case 3:
-        return true;
-      default:
-        return false;
-    }
+  }
+
+  // Author can only manage certain statuses
+  if (authorId === currentUserId) {
+    // Define allowed statuses for authors (1: draft, 2: pending, 3: submitted)
+    const allowedStatuses = [1, 2, 3];
+    return allowedStatuses.includes(status);
   }
 
   return false;
 };
 
 const processAddNoticeRecipient = async (payload) => {
-  const affectedRow = await addNoticeRecipient(payload);
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to add notice recipient");
-  }
+  try {
+    const { roleId } = payload;
+    if (!roleId) {
+      throw new ApiError(400, "Role ID is required");
+    }
 
-  return { message: "Notice Recipient added successfully" };
+    const result = await addNoticeRecipient(payload);
+    if (!result || result.rowCount <= 0) {
+      throw new ApiError(500, "Unable to add notice recipient");
+    }
+
+    return {
+      message: "Notice recipient added successfully",
+      recipientId: result.insertedId,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to add notice recipient");
+  }
 };
 
 const processUpdateNoticeRecipient = async (payload) => {
-  const affectedRow = await updateNoticeRecipient(payload);
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to update notice recipient");
-  }
+  try {
+    const { id, roleId } = payload;
+    if (!id || !roleId) {
+      throw new ApiError(400, "ID and Role ID are required");
+    }
 
-  return { message: "Notice Recipient updated successfully" };
+    const affectedRow = await updateNoticeRecipient(payload);
+    if (affectedRow <= 0) {
+      throw new ApiError(500, "Unable to update notice recipient");
+    }
+
+    return { message: "Notice recipient updated successfully" };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to update notice recipient");
+  }
 };
 
 const processDeleteNoticeRecipient = async (id) => {
-  const affectedRow = await deleteNoticeRecipient(id);
-  if (affectedRow <= 0) {
-    throw new ApiError(500, "Unable to delete notice recipient");
-  }
+  try {
+    if (!id) {
+      throw new ApiError(400, "Recipient ID is required");
+    }
 
-  return { message: "Notice Recipient deleted successfully" };
+    const affectedRow = await deleteNoticeRecipient(id);
+    if (affectedRow <= 0) {
+      throw new ApiError(500, "Unable to delete notice recipient");
+    }
+
+    return { message: "Notice recipient deleted successfully" };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to delete notice recipient");
+  }
 };
 
 const processGetAllPendingNotices = async () => {
-  const notices = await getAllPendingNotices();
-  if (notices.length <= 0) {
-    throw new ApiError(404, "Pending Notices not found");
-  }
+  try {
+    const notices = await getAllPendingNotices();
+    if (!Array.isArray(notices) || notices.length <= 0) {
+      throw new ApiError(404, "Pending notices not found");
+    }
 
-  return notices;
+    return notices;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, "Failed to get pending notices");
+  }
 };
 
 module.exports = {

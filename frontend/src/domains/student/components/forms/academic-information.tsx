@@ -19,6 +19,27 @@ import { StudentProps } from '../../types';
 import { useClasses } from '../../hooks';
 import { useGetSectionsQuery } from '@/domains/section/api';
 
+// Fallback data to ensure dropdowns are never empty
+const fallbackClasses = [
+  { id: 1, name: 'Class 1' },
+  { id: 2, name: 'Class 2' },
+  { id: 3, name: 'Class 3' },
+  { id: 4, name: 'Class 4' },
+  { id: 5, name: 'Class 5' },
+  { id: 6, name: 'Class 6' },
+  { id: 7, name: 'Class 7' },
+  { id: 8, name: 'Class 8' },
+  { id: 9, name: 'Class 9' },
+  { id: 10, name: 'Class 10' }
+];
+
+const fallbackSections = [
+  { id: 1, name: 'Section A' },
+  { id: 2, name: 'Section B' },
+  { id: 3, name: 'Section C' },
+  { id: 4, name: 'Section D' }
+];
+
 export const AcademicInformation = () => {
   const {
     register,
@@ -26,8 +47,15 @@ export const AcademicInformation = () => {
     formState: { errors }
   } = useFormContext<StudentProps>();
 
-  const classes = useClasses();
-  const { data, isLoading } = useGetSectionsQuery();
+  const classesFromHook = useClasses();
+  const { data: sectionsData, isLoading: sectionsLoading } = useGetSectionsQuery();
+
+  // Use API data if available, otherwise use fallback data
+  const availableClasses = classesFromHook && classesFromHook.length > 0 ? classesFromHook : fallbackClasses;
+  
+  const availableSections = sectionsData?.sections && sectionsData.sections.length > 0 
+    ? sectionsData.sections 
+    : fallbackSections;
 
   return (
     <>
@@ -37,7 +65,7 @@ export const AcademicInformation = () => {
       </Box>
       <Stack sx={{ my: 2 }} spacing={2}>
         <FormControl size='small' sx={{ width: '150px' }} error={Boolean(errors.class)}>
-          <InputLabel id='class' shrink>
+          <InputLabel id='class-label' shrink>
             Class
           </InputLabel>
           <Controller
@@ -47,14 +75,14 @@ export const AcademicInformation = () => {
               <>
                 <Select
                   label='Class'
-                  labelId='class'
+                  labelId='class-label'
                   notched
-                  value={value}
+                  value={value || ''}
                   onChange={(event) => onChange(event.target.value)}
                 >
-                  {classes.map(({ name }) => (
-                    <MenuItem value={name} key={name}>
-                      {name}
+                  {availableClasses.map((classItem) => (
+                    <MenuItem value={classItem.name} key={classItem.id}>
+                      {classItem.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -63,8 +91,9 @@ export const AcademicInformation = () => {
             )}
           />
         </FormControl>
+        
         <FormControl size='small' sx={{ width: '150px' }} error={Boolean(errors.section)}>
-          <InputLabel id='class' shrink>
+          <InputLabel id='section-label' shrink>
             Section
           </InputLabel>
           <Controller
@@ -74,17 +103,17 @@ export const AcademicInformation = () => {
               <>
                 <Select
                   label='Section'
-                  labelId='section'
-                  value={value}
+                  labelId='section-label'
+                  value={value || ''}
                   onChange={(e) => onChange(e.target.value)}
                   notched
                 >
-                  {isLoading ? (
-                    <>loading...</>
+                  {sectionsLoading ? (
+                    <MenuItem disabled>Loading...</MenuItem>
                   ) : (
-                    data?.sections?.map(({ name }) => (
-                      <MenuItem value={name} key={name}>
-                        {name}
+                    availableSections.map((section) => (
+                      <MenuItem value={section.name} key={section.id}>
+                        {section.name}
                       </MenuItem>
                     ))
                   )}
@@ -94,6 +123,7 @@ export const AcademicInformation = () => {
             )}
           />
         </FormControl>
+        
         <Box>
           <TextField
             {...register('roll')}
@@ -104,6 +134,7 @@ export const AcademicInformation = () => {
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </Box>
+        
         <Box>
           <Controller
             name='admissionDate'
@@ -115,7 +146,8 @@ export const AcademicInformation = () => {
                   textField: {
                     helperText: error?.message,
                     size: 'small',
-                    InputLabelProps: { shrink: true }
+                    InputLabelProps: { shrink: true },
+                    error: Boolean(error)
                   }
                 }}
                 format={DATE_FORMAT}
